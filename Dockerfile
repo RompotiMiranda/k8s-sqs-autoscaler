@@ -1,9 +1,7 @@
-FROM python:3.6
+FROM python:3.7-alpine
 WORKDIR /usr/src/app
-
-COPY scripts/dependencies.sh /tmp/dependencies.sh
-RUN /tmp/dependencies.sh
-
+RUN apk add build-base
+RUN apk add libffi-dev openssl-dev
 COPY requirements.txt /tmp/requirements.txt
 RUN pip install --upgrade pip && pip install -r /tmp/requirements.txt
 

@@ -3,6 +3,7 @@ from time import sleep, time
 from logs.log import logger
 from kubernetes import client, config
 
+
 class SQSPoller:
 
     options = None
@@ -12,11 +13,13 @@ class SQSPoller:
 
     def __init__(self, options):
         self.options = options
-        self.sqs_client = boto3.client('sqs')
+        self.sqs_client = boto3.client("sqs", region_name=options.aws_region)
 
         if not self.options.sqs_queue_url:
             # derive the URL from the queue name
-            self.options.sqs_queue_url = self.sqs_client.get_queue_url(QueueName = self.options.sqs_queue_name)['QueueUrl']
+            self.options.sqs_queue_url = self.sqs_client.get_queue_url(
+                QueueName=self.options.sqs_queue_name
+            )["QueueUrl"]
 
         config.load_incluster_config()
         self.extensions_v1_beta1 = client.ExtensionsV1beta1Api()
@@ -26,18 +29,23 @@ class SQSPoller:
     def message_counts(self):
         response = self.sqs_client.get_queue_attributes(
             QueueUrl=self.options.sqs_queue_url,
-            AttributeNames=['ApproximateNumberOfMessages','ApproximateNumberOfMessagesNotVisible']
+            AttributeNames=["ApproximateNumberOfMessages", "ApproximateNumberOfMessagesNotVisible"],
         )
-        message_count = int(response['Attributes']['ApproximateNumberOfMessages'])
-        invisible_message_count = int(response['Attributes']['ApproximateNumberOfMessagesNotVisible'])
+        message_count = int(response["Attributes"]["ApproximateNumberOfMessages"])
+        invisible_message_count = int(
+            response["Attributes"]["ApproximateNumberOfMessagesNotVisible"]
+        )
         return message_count, invisible_message_count
 
     def poll(self):
         message_count, invisible_message_count = self.message_counts()
         deployment = self.deployment()
-        logger.debug("Current message counts: %d visible / %d invisible. %d replicas." % (message_count, invisible_message_count, deployment.spec.replicas))
+        logger.debug(
+            "Current message counts: %d visible / %d invisible. %d replicas."
+            % (message_count, invisible_message_count, deployment.spec.replicas)
+        )
         t = time()
-        if  message_count >= self.options.scale_up_messages:
+        if message_count >= self.options.scale_up_messages:
             if t - self.last_scale_up_time > self.options.scale_up_cool_down:
                 self.scale_up(deployment)
                 self.last_scale_up_time = t
@@ -78,12 +86,14 @@ class SQSPoller:
             logger.debug("Min pods reached")
 
     def deployment(self):
-        #logger.debug("loading deployment: {} from namespace: {}".format(self.options.kubernetes_deployment, self.options.kubernetes_namespace))
+        # logger.debug("loading deployment: {} from namespace: {}".format(self.options.kubernetes_deployment, self.options.kubernetes_namespace))
         if self.options.kubernetes_deployment_selector:
             selector = self.options.kubernetes_deployment_selector
         else:
             selector = "app={}".format(self.options.kubernetes_deployment)
-        deployments = self.extensions_v1_beta1.list_namespaced_deployment(self.options.kubernetes_namespace, label_selector=selector)
+        deployments = self.extensions_v1_beta1.list_namespaced_deployment(
+            self.options.kubernetes_namespace, label_selector=selector
+        )
         return deployments.items[0]
 
     def update_deployment(self, deployment):
@@ -91,14 +101,18 @@ class SQSPoller:
         api_response = self.extensions_v1_beta1.patch_namespaced_deployment(
             name=self.options.kubernetes_deployment,
             namespace=self.options.kubernetes_namespace,
-            body=deployment)
+            body=deployment,
+        )
         logger.debug("Deployment updated. status='%s'" % str(api_response.status))
 
     def run(self):
         options = self.options
-        logger.debug("Starting poll for {} every {}s".format(options.sqs_queue_url, options.poll_period))
+        logger.debug(
+            "Starting poll for {} every {}s".format(options.sqs_queue_url, options.poll_period)
+        )
         while True:
             self.poll()
+
 
 def run(options):
     """
