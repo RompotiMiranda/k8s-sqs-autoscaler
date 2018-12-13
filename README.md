@@ -2,6 +2,17 @@
 Kubernetes pod autoscaler based on queue size in AWS SQS
 
 ## Usage
+
+Parameters:
+
+ - sqs_queue_name
+ - kubernetes_deployment_selector: which deployments to scale, something like "app=pymoab" 
+ - kubernetes_namespace
+ - poll_period: seconds. how often to check if scaling is needed 
+ - scale_up_messages/scale_down_messages: how many message have to be in the queue before we scale up/down
+ - scale_down_cool_down/scale_up_cool_down: how many seconds to wait between consecutive scale up/down events. this help prevent thrashing by scaling up too fast 
+ - max_pods/min_pod: how far to scale
+
 Create a kubernetes deployment like this:
 ```
 apiVersion: extensions/v1beta1
