@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 import boto3
 from time import sleep, time
 
@@ -43,8 +45,8 @@ class SQSPoller:
 
         config.load_incluster_config()
         self.extensions_v1_beta1 = client.ExtensionsV1beta1Api()
-        self.last_scale_up_time = time()
-        self.last_scale_down_time = time()
+        self.last_scale_up_time = defaultdict(time)
+        self.last_scale_down_time = defaultdict(time)
 
     def message_counts(self):
         response = self.sqs_client.get_queue_attributes(
@@ -61,10 +63,12 @@ class SQSPoller:
         message_count, invisible_message_count = self.message_counts()
         t = time()
         for deployment in self.deployments():
+            name = deployment.metadata.name
+            logger.info("Checking deployment %s", name)
             if message_count >= self.options.scale_up_messages:
-                if t - self.last_scale_up_time > self.options.scale_up_cool_down:
+                if t - self.last_scale_up_time[name] > self.options.scale_up_cool_down:
                     self.scale_up(deployment)
-                    self.last_scale_up_time = t
+                    self.last_scale_up_time[name] = t
                 else:
                     logger.debug("Waiting for scale up cooldown")
             if message_count <= self.options.scale_down_messages:
@@ -74,9 +78,9 @@ class SQSPoller:
                     and deployment.spec.replicas <= invisible_message_count
                 ):
                     logger.debug("Not scaling down because messages are still in-flight")
-                elif t - self.last_scale_down_time > self.options.scale_down_cool_down:
+                elif t - self.last_scale_down_time[name] > self.options.scale_down_cool_down:
                     self.scale_down(deployment)
-                    self.last_scale_down_time = t
+                    self.last_scale_down_time[name] = t
                 else:
                     if deployment.spec.replicas > self.options.min_pods:
                         logger.debug("Waiting for scale down cooldown")
