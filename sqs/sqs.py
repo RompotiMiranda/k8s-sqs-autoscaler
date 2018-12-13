@@ -1,7 +1,27 @@
 import boto3
 from time import sleep, time
+
+from dataclasses import dataclass
+
 from logs.log import logger
 from kubernetes import client, config
+
+
+@dataclass(repr=False)
+class Options:
+    sqs_queue_url: str = ""
+    sqs_queue_name: str = ""
+    kubernetes_deployment: str = ""
+    kubernetes_namespace: str = ""
+    kubernetes_deployment_selector: str = ""
+    aws_region: str = ""
+    poll_period: int = 10
+    scale_down_cool_down: int = 10
+    scale_up_cool_down: int = 10
+    scale_up_messages: int = 20
+    scale_down_messages: int = 10
+    max_pods: int = 10
+    min_pods: int = 1
 
 
 class SQSPoller:
@@ -11,7 +31,7 @@ class SQSPoller:
     extensions_v1_beta1 = None
     last_message_count = None
 
-    def __init__(self, options):
+    def __init__(self, options: Options):
         self.options = options
         self.sqs_client = boto3.client("sqs", region_name=options.aws_region)
 
@@ -86,7 +106,11 @@ class SQSPoller:
             logger.debug("Min pods reached")
 
     def deployment(self):
-        # logger.debug("loading deployment: {} from namespace: {}".format(self.options.kubernetes_deployment, self.options.kubernetes_namespace))
+        logger.debug(
+            "loading deployment: %s from namespace: %s",
+            self.options.kubernetes_deployment,
+            self.options.kubernetes_namespace,
+        )
         if self.options.kubernetes_deployment_selector:
             selector = self.options.kubernetes_deployment_selector
         else:
@@ -108,7 +132,7 @@ class SQSPoller:
     def run(self):
         options = self.options
         logger.debug(
-            "Starting poll for {} every {}s".format(options.sqs_queue_url, options.poll_period)
+            "Starting poll for %s every %d seconds", options.sqs_queue_url, options.poll_period
         )
         while True:
             self.poll()
@@ -119,4 +143,4 @@ def run(options):
     poll_period is set as as part of k8s deployment env variable
     sqs_queue_url is set as as part of k8s deployment env variable
     """
-    SQSPoller(options).run()
+    SQSPoller(Options(**options.__dict__)).run()
