@@ -59,9 +59,8 @@ class SQSPoller:
 
     def poll(self):
         message_count, invisible_message_count = self.message_counts()
-        deployments = self.deployments()
         t = time()
-        for deployment in deployments:
+        for deployment in self.deployments():
             if message_count >= self.options.scale_up_messages:
                 if t - self.last_scale_up_time > self.options.scale_up_cool_down:
                     self.scale_up(deployment)
@@ -119,13 +118,12 @@ class SQSPoller:
         deployments = self.extensions_v1_beta1.list_namespaced_deployment(
             self.options.kubernetes_namespace, label_selector=selector
         )
-        logger.debug(deployments.items)
         return deployments.items
 
     def update_deployment(self, deployment):
         # Update the deployment
         api_response = self.extensions_v1_beta1.patch_namespaced_deployment(
-            name=self.options.kubernetes_deployment,
+            name=deployment.metadata.name,
             namespace=self.options.kubernetes_namespace,
             body=deployment,
         )
