@@ -1,12 +1,11 @@
 ORG=mbatchkarov
 PROJ=k8s-sqs-autoscaler
-VERSION=1.0.1
 
 .PHONY=release
 build:
-	docker build -t ${ORG}/${PROJ}:${VERSION} -f Dockerfile .
+	docker build -t ${ORG}/${PROJ}:`git rev-parse HEAD` -f Dockerfile .
 
 push:
-	docker push ${ORG}/${PROJ}:${VERSION}
+	docker push ${ORG}/${PROJ}:`git rev-parse HEAD`
 
 all: build push

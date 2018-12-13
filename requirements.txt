@@ -3,5 +3,4 @@ boto3==1.5.12
 # build requirements, so list it manually here
 cffi==1.11.5
 pytest==3.3.2
-flake8==3.4.1
 kubernetes==8.0.0
