@@ -3,7 +3,7 @@
 from optparse import OptionParser
 from sqs import sqs
 from healthcheck import health_check
-from logs.log import logger
+from logs import log
 
 
 if __name__ == "__main__":
@@ -31,9 +31,12 @@ if __name__ == "__main__":
     )
     parser.add_option("--max-pods", dest="max_pods", type="int", default=10, help="")
     parser.add_option("--min-pods", dest="min_pods", type="int", default=1, help="")
+    parser.add_option("--log-level", dest="log_level", type="string", default="DEBUG", help="")
+    parser.add_option("--port", dest="min_pods", type="int", default=5000, help="")
 
     (options, args) = parser.parse_args()
-    logger.debug(options)
+    log.setup_logging(options)
+    log.logger.debug(options)
 
     if not (options.sqs_queue_url or options.sqs_queue_name):
         parser.error("SQS_QUEUE_URL / SQS_QUEUE_NAME not given")
@@ -46,5 +49,5 @@ if __name__ == "__main__":
     if not options.kubernetes_deployment:
         parser.error("KUBERNETES_DEPLOYMENT not given")
 
-    health_check.run()
+    health_check.run(options)
     sqs.run(options)

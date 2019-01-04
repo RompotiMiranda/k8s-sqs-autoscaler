@@ -13,10 +13,10 @@ def is_healthy():
         return jsonify({'status': 'UNHEALTHY'}), 503
 
 
-def start_health_endpoint():
-    app.run(host='0.0.0.0', port=5000)
+def start_health_endpoint(port):
+    app.run(host='0.0.0.0', port=port)
 
 
-def run():
-    t = Thread(target=start_health_endpoint, daemon=True)
+def run(options):
+    t = Thread(target=start_health_endpoint(options.port), daemon=True)
     t.start()
