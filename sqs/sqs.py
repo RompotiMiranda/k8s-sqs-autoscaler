@@ -1,6 +1,7 @@
 import boto3
 from time import sleep, time
 from logs.log import logger
+from healthcheck import health_check
 from kubernetes import client, config
 
 
@@ -62,9 +63,6 @@ class SQSPoller:
                 if deployment.spec.replicas > self.options.min_pods:
                     logger.debug("Waiting for scale down cooldown")
 
-        # code for scale to use msg_count
-        sleep(self.options.poll_period)
-
     def scale_up(self, deployment):
         if deployment.spec.replicas < self.options.max_pods:
             deployment.spec.replicas += 1
@@ -110,8 +108,15 @@ class SQSPoller:
         logger.debug(
             "Starting poll for {} every {}s".format(options.sqs_queue_url, options.poll_period)
         )
+
         while True:
-            self.poll()
+            try:
+                self.poll()
+                health_check.Healthy = True
+                sleep(self.options.poll_period)
+            except Exception:
+                health_check.Healthy = False
+                logger.exception('Failed to autoscale')
 
 
 def run(options):
